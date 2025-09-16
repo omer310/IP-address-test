@@ -11,7 +11,7 @@ app.get('/', (req, res) => {
 
 app.get('/ip-test', (req, res) => {
   // Use Node.js built-in https module instead of fetch
-  https.get('https://ifconfig.me', (response) => {
+   https.get('https://api.ipify.org', (response) => {
     let data = '';
     
     response.on('data', (chunk) => {
