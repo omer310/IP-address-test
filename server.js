@@ -10,28 +10,33 @@ app.get('/', (req, res) => {
 });
 
 app.get('/ip-test', (req, res) => {
-  // Use Node.js built-in https module instead of fetch
-   https.get('https://api.ipify.org', (response) => {
+  const reqIp = https.get('https://api.ipify.org', { timeout: 5000 }, (response) => {
     let data = '';
-    
-    response.on('data', (chunk) => {
-      data += chunk;
-    });
-    
+    response.on('data', (chunk) => { data += chunk; });
     response.on('end', () => {
       res.json({
         message: 'External IP test',
         externalIP: data.trim(),
         timestamp: new Date().toISOString(),
-        note: 'This should be your static IP when using VPC egress'
+        note: 'Should match your Cloud NAT static IP when VPC egress is enabled'
       });
     });
-  }).on('error', (error) => {
+  });
+
+  reqIp.on('timeout', () => {
+    reqIp.destroy(new Error('Upstream timeout'));
+  });
+
+  reqIp.on('error', (error) => {
     console.error('Error fetching IP:', error);
-    res.status(500).json({
+    res.status(504).json({
       error: error.message,
       message: 'Failed to fetch external IP',
-      details: 'Using Node.js https module'
+      likelyCauses: [
+        'No outbound internet because VPC connector enabled without Cloud NAT',
+        'Cloud NAT not covering the connector’s subnet',
+        'Region mismatch among Cloud Run, connector, router, and NAT'
+      ]
     });
   });
 });
