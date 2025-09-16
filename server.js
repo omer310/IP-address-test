@@ -1,4 +1,5 @@
 const express = require('express');
+const https = require('https');
 const app = express();
 
 app.get('/', (req, res) => {
@@ -8,23 +9,31 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/ip-test', async (req, res) => {
-  try {
-    const response = await fetch('https://ifconfig.me');
-    const externalIP = await response.text();
+app.get('/ip-test', (req, res) => {
+  // Use Node.js built-in https module instead of fetch
+  https.get('https://ifconfig.me', (response) => {
+    let data = '';
     
-    res.json({
-      message: 'External IP test',
-      externalIP: externalIP.trim(),
-      timestamp: new Date().toISOString(),
-      note: 'This should be your static IP when using VPC egress'
+    response.on('data', (chunk) => {
+      data += chunk;
     });
-  } catch (error) {
+    
+    response.on('end', () => {
+      res.json({
+        message: 'External IP test',
+        externalIP: data.trim(),
+        timestamp: new Date().toISOString(),
+        note: 'This should be your static IP when using VPC egress'
+      });
+    });
+  }).on('error', (error) => {
+    console.error('Error fetching IP:', error);
     res.status(500).json({
       error: error.message,
-      message: 'Failed to fetch external IP'
+      message: 'Failed to fetch external IP',
+      details: 'Using Node.js https module'
     });
-  }
+  });
 });
 
 const port = process.env.PORT || 8080;
